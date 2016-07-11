@@ -1,18 +1,18 @@
 (ns alphabet-cipher.coder)
 
-; normal alphabet (i.e. a-z)
-(def alphabet (map char (range 97 123)))
-
-(defn shift-alphabet
+(defn alphabet-with-start-char
   "Returns the alphabet with the provided
   char used as the start of the alphabet.
   Any leading characters are appended to
   the end of the resulting char array."
   [c]
-  (flatten
+  (apply str (flatten
     (cons
       (map char (range (int c) 123))
-      (map char (range 97 (int c))))))
+      (map char (range 97 (int c)))))))
+
+; normal alphabet (i.e. a-z)
+(def standard-alphabet (alphabet-with-start-char \a))
 
 (defn char->index
   "Returns the index of char c in the
@@ -39,13 +39,13 @@
   (let [repeated-keyword (repeat-keyword keyword (count message))]
     (apply str
            (for [[c1 c2] (zip repeated-keyword message)]
-             (nth (shift-alphabet c1) (char->index c2 alphabet))))))
+             (nth (alphabet-with-start-char c1) (char->index c2 standard-alphabet))))))
 
 (defn decode [keyword message]
   (let [repeated-keyword (repeat-keyword keyword (count message))]
     (apply str
            (for [[c1 c2] (zip repeated-keyword message)]
-             (nth alphabet (char->index c2 (shift-alphabet c1)))))))
+             (nth standard-alphabet (char->index c2 (alphabet-with-start-char c1)))))))
 
 (defn extract-keyword
   "Extracts the keyword based on the provided
@@ -53,7 +53,7 @@
   [cipher message]
   (apply str
          (for [[c1 c2] (zip cipher message)]
-           (nth alphabet (char->index c1 (shift-alphabet c2))))))
+           (nth standard-alphabet (char->index c1 (alphabet-with-start-char c2))))))
 
 (defn equals-repeated?
   "This function repeats the provided candidate
@@ -74,4 +74,3 @@
             (equals-repeated? candidate keyword))
           candidate
           (recur (rest remaining) (conj acc (first remaining))))))))
-
