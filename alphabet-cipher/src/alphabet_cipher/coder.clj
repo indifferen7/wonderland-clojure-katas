@@ -1,76 +1,70 @@
 (ns alphabet-cipher.coder)
 
-(defn alphabet-with-start-char
-  "Returns the alphabet with the provided
-  char used as the start of the alphabet.
-  Any leading characters are appended to
-  the end of the resulting char array."
+; A vector containing the characters a to z
+(def a->z (map char (range 97 123)))
+
+(defn shift-a->z
+  "Shifts a->z so that it starts with the character c."
   [c]
-  (apply str (flatten
-    (cons
-      (map char (range (int c) 123))
-      (map char (range 97 (int c)))))))
+  (let [ix (.indexOf a->z c)]
+    (concat (drop ix a->z) (take ix a->z))))
 
-; normal alphabet (i.e. a-z)
-(def standard-alphabet (alphabet-with-start-char \a))
+(defn encode-char
+  "Encodes a character."
+  [keyword-char message-char]
+  (let [shifted (shift-a->z keyword-char)]
+    (nth shifted (.indexOf a->z message-char))))
 
-(defn char->index
-  "Returns the index of char c in the
-  provided colleciton of chars in xs."
-  [c xs]
-  (loop [current xs i 0]
-    (if (= (first current) c)
-      i
-      (recur (rest current) (inc i)))))
+(defn encode
+  "Encodes the message with the provided keyword."
+  [keyword message]
+  (->> (map vector (cycle keyword) message)
+       (reduce
+         (fn [acc [keyword-char message-char]]
+           (conj acc (encode-char keyword-char message-char)))
+         [])
+       (apply str)))
 
-(defn repeat-keyword
-  "Repeats the characters in the keyword n times."
-  [keyword n]
-  (loop [acc []]
-    (if (>= (count acc) n)
-      (apply str (first (split-at n (clojure.string/join acc))))
-      (recur (conj acc keyword)))))
+(defn decode-char
+  "Decodes a message character."
+  [keyword-char message-char]
+  (let [shifted (shift-a->z keyword-char)]
+    (nth a->z (.indexOf shifted message-char))))
 
-(defn zip
-  "Simply zips the two collections together."
-  [xs ys] (map vector xs ys))
+(defn decode
+  "Decodes the message with the provided keyword."
+  [keyword message]
+  (->> (map vector (cycle keyword) message)
+       (reduce
+         (fn [acc [keyword-char message-char]]
+           (conj acc (decode-char keyword-char message-char)))
+         [])
+       (apply str)))
 
-(defn encode [keyword message]
-  (let [repeated-keyword (repeat-keyword keyword (count message))]
-    (apply str
-           (for [[c1 c2] (zip repeated-keyword message)]
-             (nth (alphabet-with-start-char c1) (char->index c2 standard-alphabet))))))
+(defn lengthen
+  "Lengthens the provided string s with n characters by repeating it."
+  [s n]
+  (->> (cycle s)
+       (take n)))
 
-(defn decode [keyword message]
-  (let [repeated-keyword (repeat-keyword keyword (count message))]
-    (apply str
-           (for [[c1 c2] (zip repeated-keyword message)]
-             (nth standard-alphabet (char->index c2 (alphabet-with-start-char c1)))))))
-
-(defn extract-keyword
-  "Extracts the keyword based on the provided
-  cipher and message."
-  [cipher message]
-  (apply str
-         (for [[c1 c2] (zip cipher message)]
-           (nth standard-alphabet (char->index c1 (alphabet-with-start-char c2))))))
-
-(defn equals-repeated?
-  "This function repeats the provided candidate
-  so that the string equals the length of the
-  keyword. If candidate equals keyword, the function
-  returns true."
-  [candidate keyword]
-  (= (repeat-keyword candidate (count keyword)) keyword))
+(defn resolve-keyword
+  "Resolves the keyword of repeated characters in coll."
+  [coll]
+  (let [length (count coll)]
+    (reduce
+      (fn [candidate char]
+        (if (= (lengthen candidate length) coll)
+          (reduced candidate)
+          (conj candidate char)))
+      []
+      coll)))
 
 (defn decipher [cipher message]
-  (let [keyword (extract-keyword cipher message)]
-    (loop [remaining keyword
-           acc []]
-      (let [candidate (apply str acc)]
-        (if
-          (or
-            (empty? remaining)
-            (equals-repeated? candidate keyword))
-          candidate
-          (recur (rest remaining) (conj acc (first remaining))))))))
+  "Extracts the keyword from the cipher and the message."
+  (->> (map vector cipher message)
+       (reduce
+         (fn [acc [cipher-char message-char]]
+           (conj acc (decode-char message-char cipher-char)))
+         [])
+       (resolve-keyword)
+       (apply str)))
