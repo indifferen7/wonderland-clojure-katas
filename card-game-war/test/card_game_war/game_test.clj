@@ -22,5 +22,11 @@
     (is (= :player1 (play-round [:heart 3] [:diamond 3])))))
 
 (deftest test-play-game
-  (testing "the player loses when they run out of cards"))
+  (testing "the player loses when they run out of cards"
+    (let [[p1-cards p2-cards] (deal-cards [[:heart 2]
+                                           [:heart :ace]
+                                           [:diamond 3]
+                                           [:club 5]])]
+
+      (is (= :player1 (play-game p1-cards p2-cards))))))
 
